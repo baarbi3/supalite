@@ -1,5 +1,5 @@
-import { pgEnum, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
-import { users } from "./users";
+import { pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { users } from './users';
 
 export const orgRoleEnum = pgEnum('org_role', ['admin', 'developer']);
 
@@ -11,19 +11,19 @@ export const organizations = pgTable('organizations', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
-export const orgMembers = pgTable(`org_members`, {
+export const orgMembers = pgTable('org_members', {
   id: uuid().defaultRandom().primaryKey(),
-  orgId: uuid()
-  .notNull()
-  .references(() => organizations.id, { onDelete: 'cascade' }),
-  userId: uuid('user_id').notNull()
-  .references(() => users.id, {onDelete: 'cascade'}),
+  orgId: uuid('org_id')
+    .notNull()
+    .references(() => organizations.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
   role: orgRoleEnum('role').notNull().default('developer'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
 export type Organization = typeof organizations.$inferSelect;
 export type NewOrganization = typeof organizations.$inferInsert;
-
 export type OrgMember = typeof orgMembers.$inferSelect;
 export type NewOrgMember = typeof orgMembers.$inferInsert;
