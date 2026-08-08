@@ -196,7 +196,7 @@ export class AuthService {
   getGoogleAuthUrl() {
     const params = new URLSearchParams({
       client_id: this.configService.get<string>('GOOGLE_CLIENT_ID')!,
-      redirect_url: this.configService.get<string>('GOOGLE_CALLBACK_URL')!,
+      redirect_uri: this.configService.get<string>('GOOGLE_CALLBACK_URL')!,
       response_type: 'code',
       scope: 'openid email profile',
       access_type: 'offline'
@@ -237,4 +237,62 @@ export class AuthService {
     });
    }
 
+   getGithubAuthUrl() {
+    const params = new URLSearchParams({
+      client_id: this.configService.get<string>('GITHUB_CLIENT_ID')!,
+      redirect_uri: this.configService.get<string>('GITHUB_CALLBACK_URL')!,
+      scope: 'read:user user:email',
+    });
+
+    return `https://github.com/login/oauth/authorize?${params.toString()}`;
+   }
+
+   async handleGithubCallback(code: string) {
+    const tokenRes = await fetch('https://login/oauth/access_token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        client_id: this.configService.get<string>('GITHUB_CLIENT_ID'),
+        client_secret: this.configService.get<string>('GITHUB_CLIENT_SECRET'),
+        code,
+        redirect_uri: this.configService.get<string>('GITHUB_CALLBACK_URL')
+      })
+    })
+
+    const tokenData = await tokenRes.json() as { access_token: string };
+
+    const profileRes = await fetch('https://api.github.com/user', {
+      headers: {
+        Authorization: `Bearer ${tokenData.access_token}`,
+        Accept: `application/vnd.github+json`,
+      }
+    });
+
+    const profile = await profileRes.json() as {
+      email: string | null;
+      name: string | null;
+      login: string;
+      avatar_url: string | null; 
+    }
+
+    let email = profile.email;
+
+    if (!email) {
+      const emailRes = await fetch(`https://api.github.com/user/emails`, {
+        headers: {
+          Authorization: `Bearer ${tokenData.access_token}`,
+          Accept: 'application/vind.github+json'
+        }
+      });
+
+      const emails = await emailRes.json() as { email: string ; primary: boolean; verified: boolean }[];
+      email = emails.find((e) => e.primary && e.verified)?.email ?? null;
+    }
+
+    return this.handleOAuthUser({
+      email: email!,
+      name: profile.name ?? profile.login,
+      avatarUrl: profile.avatar_url ?? null,
+    })
+   }
 }
