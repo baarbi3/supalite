@@ -12,6 +12,7 @@ import { organizations, orgMembers, users } from "../db/schema";
 import { RegisterDto } from "./dto/register.dto";
 import { LoginDto } from "./dto/login.dto";
 import { from } from "rxjs";
+import { JwtPayload } from "@supalite/types";
 
 @Injectable()
 export class AuthService {
@@ -128,4 +129,28 @@ export class AuthService {
 
     return this.signTokens(user.id, user.email);
   }
+
+  async refreshToken(refreshToken: string) {
+    try {
+      const payload = this.jwtService.verify<JwtPayload>(refreshToken, {
+        secret: this.configService.get('JWT_REFRESH_SECRET')
+      });
+
+      const [user] = await this.drizzle.db
+      .select()
+      .from(users)
+      .where(eq(users.id, payload.sub))
+      .limit(1);
+
+      if (!user) {
+        throw new UnauthorizedException();
+      }
+
+      return this.signTokens(user.id, user.email);
+    } catch {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+  }
+
+  //
 }
