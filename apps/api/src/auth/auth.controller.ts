@@ -1,0 +1,62 @@
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Post,
+  Query,
+  Redirect,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
+import type { Request, Response } from 'express';
+import { ConfigService } from '@nestjs/config';
+import { COOKIE_KEYS } from '@supalite/constants';
+import type { JwtPayload } from '@supalite/types';
+import { AuthService } from './auth.service';
+import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import { CurrentUser } from './current-user.decorator';
+
+@Controller('auth')
+export class AuthController {
+  constructor (
+    private authService: AuthService,
+    private configService: ConfigService,
+  ){}
+
+  @Post('register')
+  async register(@Body() dto: RegisterDto, @Res({ passthrough: true }) res: Response){
+    const tokens = await this.authService.register(dto);
+    this.authService.setTokenCookies(res, tokens);
+    return { message: 'Registered Successfully' }
+  }
+
+  @Post('login')
+  @HttpCode(200)
+  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
+    const tokens = await this.authService.login(dto);
+    this.authService.setTokenCookies(res, tokens);
+    return { message: 'Logged In Successfully' }
+  }
+
+  @Post('logout')
+  @HttpCode(200)
+  logout (@Res ({ passthrough: true }) res: Response){ 
+    this.authService.clearTokenCookies(res);
+    return { message: `Logged Out Successfully` }
+  };
+
+  @Post('refresh')
+  @HttpCode(200)
+  async refresh(@Req() req: Request , @Res ({ passthrough: true }) res: Response) {
+    const refreshToken = req.cookies[COOKIE_KEYS.REFRESH_TOKEN]
+    const tokens = await this.authService.refreshTokens(refreshToken)
+    this.authService.setTokenCookies(res, tokens);
+
+    return { message: 'Tokens refreshed' };
+  }
+
+}
