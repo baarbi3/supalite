@@ -52,11 +52,42 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(200)
   async refresh(@Req() req: Request , @Res ({ passthrough: true }) res: Response) {
-    const refreshToken = req.cookies[COOKIE_KEYS.REFRESH_TOKEN]
+    const refreshToken = req.cookies[COOKIE_KEYS.REFRESH_TOKEN] as string;
     const tokens = await this.authService.refreshTokens(refreshToken)
     this.authService.setTokenCookies(res, tokens);
 
     return { message: 'Tokens refreshed' };
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  me(@CurrentUser() user: JwtPayload) {
+    return user;
+  };
+
+  @Get('google')
+  @Redirect()
+  googleLogin(){
+    return { url: this.authService.getGoogleAuthUrl() };
+  };
+
+  @Get('google/callback')
+  async googleCallback(@Query('code') code:string, @Res() res: Response) {
+    const tokens = await this.authService.handleGoogleCallback(code);
+    this.authService.setTokenCookies(res, tokens);
+    return res.redirect(`${this.configService.get<string>('WEB_URL')}/dashboard`)
+  };
+
+  @Get('github')
+  @Redirect()
+  githubLogin(){
+    return { url: this.authService.getGithubAuthUrl() };
+  };
+
+  @Get('github/callback')
+  async githubCallback(@Query('code') code: string, @Res() res: Response) {
+    const tokens = await this.authService.handleGithubCallback(code);
+    this.authService.setTokenCookies(res, tokens);
+    return res.redirect(`${this.configService.get<string>('WEB_URL')}/dashboard`)
+  }
 }
